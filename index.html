@@ -1195,6 +1195,23 @@ tr:hover td { background:rgba(255,255,255,0.02); }
         <div id="sociosContent"></div>
       </div>
 
+      <!-- ═══════════════════════════════════════════
+           GUARDIAS — INTERVENCIONES FUERA DE HORARIO
+      ════════════════════════════════════════════ -->
+      <div class="section" id="sec-guardias">
+        <div class="page-header">
+          <div class="page-title-wrap">
+            <div class="page-eyebrow">Recursos Humanos</div>
+            <div class="page-title">Guardias · Intervenciones</div>
+          </div>
+          <div class="page-actions">
+            <button class="btn btn-ghost btn-sm" onclick="exportToXLSX('guardias')" title="Exportar intervenciones">📥 Excel</button>
+            <button class="btn btn-primary" onclick="openModal('modalGuardia')">+ Nueva Intervención</button>
+          </div>
+        </div>
+        <div id="guardiasContent"></div>
+      </div>
+
       <!-- PERFIL -->
       <div class="section" id="sec-perfil">
         <div class="page-header">
@@ -1868,6 +1885,72 @@ tr:hover td { background:rgba(255,255,255,0.02); }
   </div>
 </div>
 
+<!-- MODAL NUEVA INTERVENCIÓN DE GUARDIA -->
+<div class="modal-overlay" id="modalGuardia">
+  <div class="modal" style="max-width:680px">
+    <div class="modal-title">🚨 Nueva Intervención de Guardia</div>
+    <div class="modal-sub">Registrá una intervención fuera de horario laboral.</div>
+    <div class="form-grid">
+      <div class="field"><label>Fecha de la intervención</label>
+        <input type="date" id="giFecha">
+      </div>
+      <div class="field"><label>Hora de llamado</label>
+        <input type="time" id="giHoraLlamado" placeholder="HH:MM">
+      </div>
+      <div class="field"><label>Hora de llegada</label>
+        <input type="time" id="giHoraLlegada" placeholder="HH:MM">
+      </div>
+      <div class="field"><label>Hora de finalización</label>
+        <input type="time" id="giHoraFin" placeholder="HH:MM">
+      </div>
+      <div class="field"><label>Sede</label>
+        <select id="giSede">
+          <option value="CERRO">Cerro</option>
+          <option value="DEAN FUNES">Dean Funes</option>
+          <option value="RUTA 20">Ruta 20</option>
+          <option value="ARGUELLO">Argüello</option>
+        </select>
+      </div>
+      <div class="field"><label>Personal que intervino</label>
+        <input type="text" id="giPersonal" placeholder="Nombre completo">
+      </div>
+      <div class="field full">
+        <label>Equipo vinculado <span style="color:var(--muted);font-weight:400">(opcional — del inventario TPM)</span></label>
+        <div class="autocomplete-wrap">
+          <input class="autocomplete-input" type="text" id="giEquipo" placeholder="Buscá por ID o descripción..." autocomplete="off">
+          <div class="autocomplete-dropdown" id="giEquipoDrop"></div>
+        </div>
+        <div id="giEquipoInfo" style="margin-top:6px;font-size:0.78rem;color:var(--accent);font-family:var(--font-mono);display:none"></div>
+      </div>
+      <div class="field full"><label>Descripción de la falla</label>
+        <textarea id="giDescFalla" placeholder="Qué ocurrió, síntomas observados..."></textarea>
+      </div>
+      <div class="field full"><label>Acciones realizadas</label>
+        <textarea id="giAccion" placeholder="Qué se hizo para resolverlo..."></textarea>
+      </div>
+      <div class="field"><label>Estado</label>
+        <select id="giEstado">
+          <option value="RESUELTO">Resuelto</option>
+          <option value="EN SEGUIMIENTO">En Seguimiento</option>
+          <option value="DERIVADO">Derivado a Técnico</option>
+        </select>
+      </div>
+      <div class="field full">
+        <label>Fotos <span style="color:var(--muted);font-weight:400">(opcional)</span></label>
+        <div class="photo-upload-wrap">
+          <input type="file" accept="image/*" multiple onchange="handlePhotoSelect(this,'modalGuardia')" capture="environment">
+          <div class="photo-upload-label"><span class="icon">📷</span>Sacar foto del problema / solución</div>
+        </div>
+        <div class="photo-previews" id="photoPreview_modalGuardia"></div>
+      </div>
+    </div>
+    <div class="btn-row">
+      <button class="btn btn-primary" onclick="saveGuardia()">Guardar Intervención</button>
+      <button class="btn btn-ghost" onclick="closeModal('modalGuardia')">Cancelar</button>
+    </div>
+  </div>
+</div>
+
 <!-- LIGHTBOX -->
 <div id="lightbox" onclick="closeLightbox()">
   <button class="lb-close" onclick="closeLightbox()">✕</button>
@@ -1913,8 +1996,8 @@ const ROLE_COLORS = { director:'#e8a020', encargado:'#2d8cf0', maestranza:'#27c9
 
 // NAV CONFIG: which sections each role can see
 const NAV_BY_ROLE = {
-  director:    ['dashboard','tareas','tpm','relevamiento','gestion','qrvest','qrotras','caja','controles','socios','admin'],
-  encargado:   ['tareas','tpm','relevamiento','qrvest','qrotras'],
+  director:    ['dashboard','tareas','tpm','relevamiento','gestion','qrvest','qrotras','caja','controles','socios','guardias','admin'],
+  encargado:   ['tareas','tpm','relevamiento','qrvest','qrotras','guardias'],
   maestranza:  ['tareas'],
   contratista: ['relevamiento'],
 };
@@ -1930,6 +2013,7 @@ const NAV_META = {
   admin:        { label:'Administración',    icon:'⚙️' },
   controles:    { label:'Controles',         icon:'🎲' },
   socios:       { label:'Indicadores Socios', icon:'👥' },
+  guardias:     { label:'Guardias',          icon:'🚨' },
 };
 
 // ── STATE ─────────────────────────────────────────
@@ -1955,6 +2039,7 @@ window._state = {
     sedes: [],
     zonas: [],
     sociosIndicadores: [],
+    guardias: [],
   }
 };
 
@@ -2158,6 +2243,7 @@ function renderSection(id) {
   if (id === 'perfil')       renderPerfil();
   if (id === 'controles')    renderControles();
   if (id === 'socios')       renderSocios();
+  if (id === 'guardias')     renderGuardias();
 }
 
 // ── SIDEBAR TOGGLE ─────────────────────────────────
@@ -2194,6 +2280,7 @@ function startListeners() {
   listen('bucor_sedes', 'sedes');
   listen('bucor_zonas', 'zonas');
   listen('bucor_socios_indicadores', 'sociosIndicadores');
+  listen('bucor_guardias',           'guardias');
 }
 
 // ── SYNC STATUS ────────────────────────────────────
@@ -2235,6 +2322,9 @@ window.openModal = (id) => {
     setTimeout(initTPMAutocompletes, 100);
     if (id === 'modalTPMEquipo') updateIDBuilder();
     if (id === 'modalTPMTarea')  autoIDTarea();
+  }
+  if (id === 'modalGuardia') {
+    setTimeout(initGuardiaAutocomplete, 100);
   }
 };
 window.closeModal = (id) => document.getElementById(id).classList.remove('open');
@@ -4835,6 +4925,16 @@ window.exportToXLSX = async (section) => {
       'Total Suscriptores': s.totalSusc||'', 'Débito Autorizado': s.debito,
       Notas: s.notas||''
     }));
+  } else if (section === 'guardias') {
+    filename = 'guardias_intervenciones';
+    data = (D.guardias||[]).map(g=>({
+      Fecha: g.fecha||'', Sede: SEDE_LABELS[g.sede]||g.sede,
+      Personal: g.personal||'', 'Hora Llamado': g.horaLlamado||'',
+      'Hora Llegada': g.horaLlegada||'', 'Hora Fin': g.horaFin||'',
+      'Equipo Vinculado': g.idEquipo||'', 'Descripción Falla': g.descFalla||'',
+      'Acciones Realizadas': g.accion||'', Estado: g.estado||'',
+      'Cargado por': g.creadoPor||''
+    }));
   } else if (section === 'gestion') {
     filename = 'gestion_operativa';
     data = D.gestion.map(g=>({
@@ -4873,6 +4973,7 @@ window.exportFullBackup = async () => {
       gestion: D.gestion,
       controles: D.controles||[],
       sociosIndicadores: D.sociosIndicadores||[],
+      guardias: D.guardias||[],
       users: D.users.map(u=>({...u, password:'***'})), // hide passwords
       sedes: D.sedes||[],
       zonas: D.zonas||[],
@@ -4973,6 +5074,312 @@ window.saveEditRelev = async (id) => {
   }, {merge:true});
   document.getElementById('editRelevOverlay').classList.remove('open');
   toast('✅ Obra actualizada');
+};
+
+// ══════════════════════════════════════════════════
+// ── GUARDIAS — INTERVENCIONES FUERA DE HORARIO ────
+// ══════════════════════════════════════════════════
+
+function renderGuardias() {
+  const D       = _state.data;
+  const items   = (D.guardias || []).slice().sort((a,b) => (b.fecha||'').localeCompare(a.fecha||''));
+  const el      = document.getElementById('guardiasContent');
+  if (!el) return;
+
+  // ── Estadísticas rápidas ────────────────────────
+  const total    = items.length;
+  const resueltos = items.filter(g => g.estado === 'RESUELTO').length;
+  const enSeguim  = items.filter(g => g.estado === 'EN SEGUIMIENTO').length;
+  const derivados = items.filter(g => g.estado === 'DERIVADO').length;
+  const thisMonth = new Date().toISOString().slice(0,7);
+  const esteMes   = items.filter(g => (g.fecha||'').startsWith(thisMonth)).length;
+
+  const personalSet = {};
+  items.forEach(g => {
+    if (g.personal) personalSet[g.personal] = (personalSet[g.personal]||0)+1;
+  });
+  const topPersonal = Object.entries(personalSet).sort((a,b)=>b[1]-a[1]).slice(0,3);
+
+  // ── Filtros ────────────────────────────────────
+  const filtSede   = document.getElementById('gFiltSede')?.value  || '';
+  const filtEst    = document.getElementById('gFiltEst')?.value   || '';
+  const filtPersonal = (document.getElementById('gFiltPersonal')?.value||'').toLowerCase();
+  let filtered = items;
+  if (filtSede)    filtered = filtered.filter(g => g.sede === filtSede);
+  if (filtEst)     filtered = filtered.filter(g => g.estado === filtEst);
+  if (filtPersonal) filtered = filtered.filter(g => (g.personal||'').toLowerCase().includes(filtPersonal));
+
+  const estadoBadge = (e) => {
+    if (e === 'RESUELTO')      return '<span class="badge badge-hecho">✅ Resuelto</span>';
+    if (e === 'EN SEGUIMIENTO') return '<span class="badge badge-proceso">🔄 En Seguimiento</span>';
+    if (e === 'DERIVADO')      return '<span class="badge badge-porhacer">🔧 Derivado</span>';
+    return '<span class="badge">'+(e||'—')+'</span>';
+  };
+
+  const duracion = (g) => {
+    if (!g.horaLlamado || !g.horaFin) return '—';
+    const [h1,m1] = g.horaLlamado.split(':').map(Number);
+    const [h2,m2] = g.horaFin.split(':').map(Number);
+    let mins = (h2*60+m2) - (h1*60+m1);
+    if (mins < 0) mins += 24*60;
+    const hh = Math.floor(mins/60), mm = mins%60;
+    return hh ? `${hh}h ${mm}min` : `${mm}min`;
+  };
+
+  el.innerHTML = `
+    <div class="cards-grid" style="grid-template-columns:repeat(auto-fit,minmax(160px,1fr));margin-bottom:20px">
+      <div class="stat-card c-blue"><div class="stat-label">Total</div><div class="stat-value">${total}</div><div class="stat-sub">intervenciones</div></div>
+      <div class="stat-card c-accent"><div class="stat-label">Este mes</div><div class="stat-value">${esteMes}</div><div class="stat-sub">${new Date().toLocaleString('es-AR',{month:'long'})}</div></div>
+      <div class="stat-card c-green"><div class="stat-label">Resueltas</div><div class="stat-value">${resueltos}</div><div class="stat-sub">en el momento</div></div>
+      <div class="stat-card c-yellow"><div class="stat-label">En Seguimiento</div><div class="stat-value">${enSeguim}</div><div class="stat-sub">requieren atención</div></div>
+      <div class="stat-card c-red"><div class="stat-label">Derivadas</div><div class="stat-value">${derivados}</div><div class="stat-sub">a técnico externo</div></div>
+    </div>
+
+    ${topPersonal.length ? `
+    <div class="panel" style="margin-bottom:20px">
+      <div class="panel-header"><div class="panel-title">🏆 Personal con más intervenciones</div></div>
+      <div class="panel-body" style="display:flex;gap:20px;flex-wrap:wrap">
+        ${topPersonal.map(([nombre,cant],i)=>`
+          <div style="display:flex;align-items:center;gap:10px;background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:10px 16px">
+            <span style="font-size:1.4rem">${['🥇','🥈','🥉'][i]}</span>
+            <div><div style="font-weight:600;font-size:0.88rem">${nombre}</div><div style="font-size:0.75rem;color:var(--muted)">${cant} intervención${cant!==1?'es':''}</div></div>
+          </div>`).join('')}
+      </div>
+    </div>` : ''}
+
+    <div class="panel">
+      <div class="panel-header">
+        <div class="panel-title">🚨 Registro de Intervenciones</div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
+          <select id="gFiltSede" class="field select" style="background:var(--bg2);border:1px solid var(--border);border-radius:6px;padding:6px 10px;color:var(--text);font-size:0.8rem" onchange="renderGuardias()">
+            <option value="">Todas las sedes</option>
+            ${SEDES.map(s=>`<option value="${s}"${filtSede===s?' selected':''}>${SEDE_LABELS[s]}</option>`).join('')}
+          </select>
+          <select id="gFiltEst" style="background:var(--bg2);border:1px solid var(--border);border-radius:6px;padding:6px 10px;color:var(--text);font-size:0.8rem" onchange="renderGuardias()">
+            <option value="">Todos los estados</option>
+            <option value="RESUELTO"${filtEst==='RESUELTO'?' selected':''}>Resuelto</option>
+            <option value="EN SEGUIMIENTO"${filtEst==='EN SEGUIMIENTO'?' selected':''}>En Seguimiento</option>
+            <option value="DERIVADO"${filtEst==='DERIVADO'?' selected':''}>Derivado</option>
+          </select>
+          <input type="text" id="gFiltPersonal" placeholder="Buscar personal..." value="${filtPersonal}"
+            style="background:var(--bg2);border:1px solid var(--border);border-radius:6px;padding:6px 10px;color:var(--text);font-size:0.8rem;outline:none;width:160px"
+            oninput="renderGuardias()">
+        </div>
+      </div>
+      ${filtered.length === 0 ? `
+        <div class="empty"><div class="empty-icon">🌙</div><div class="empty-title">Sin intervenciones registradas</div><div class="empty-sub">Cuando se registre una guardia fuera de horario, aparecerá aquí.</div></div>
+      ` : `
+      <div class="tbl-wrap">
+        <table>
+          <thead><tr>
+            <th>Fecha</th>
+            <th>Sede</th>
+            <th>Personal</th>
+            <th>Horario</th>
+            <th>Duración</th>
+            <th>Equipo vinculado</th>
+            <th>Falla</th>
+            <th>Estado</th>
+            <th></th>
+          </tr></thead>
+          <tbody>
+            ${filtered.map(g => {
+              const equipo = (D.tpmEquipos||[]).find(e=>e.id===g.idEquipo);
+              const eqLabel = equipo ? `<span class="chip" title="${equipo.desc||''}">${g.idEquipo}</span>` : (g.idEquipo ? `<span class="chip">${g.idEquipo}</span>` : '<span style="color:var(--muted)">—</span>');
+              const horaStr = [g.horaLlamado, g.horaLlegada, g.horaFin].filter(Boolean).join(' → ') || '—';
+              const fotoBtn = g.fotos?.length ? `<button class="action-btn edit" title="Ver fotos" onclick='showGuardiaFotos(${JSON.stringify(g.fotos)})'>📷</button>` : '';
+              return `<tr>
+                <td style="white-space:nowrap;font-family:var(--font-mono);font-size:0.8rem">${fmtDate(g.fecha)}</td>
+                <td><span class="badge badge-sede">${SEDE_LABELS[g.sede]||g.sede}</span></td>
+                <td style="font-weight:600;font-size:0.85rem">${g.personal||'—'}</td>
+                <td style="font-family:var(--font-mono);font-size:0.75rem;white-space:nowrap">${horaStr}</td>
+                <td style="font-family:var(--font-mono);font-size:0.8rem;text-align:center">${duracion(g)}</td>
+                <td>${eqLabel}</td>
+                <td style="max-width:200px"><div style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:0.82rem" title="${(g.descFalla||'').replace(/"/g,'&quot;')}">${g.descFalla||'—'}</div></td>
+                <td>${estadoBadge(g.estado)}</td>
+                <td style="white-space:nowrap">
+                  ${fotoBtn}
+                  <button class="action-btn edit" title="Detalle" onclick="showGuardiaDetalle('${g.id}')">🔍</button>
+                  <button class="action-btn" title="Eliminar" onclick="deleteGuardia('${g.id}')">🗑️</button>
+                </td>
+              </tr>`;
+            }).join('')}
+          </tbody>
+        </table>
+      </div>`}
+    </div>`;
+}
+
+window.renderGuardias = renderGuardias;
+
+window.showGuardiaFotos = (fotos) => {
+  if (!fotos?.length) return;
+  openLightbox(fotos[0]);
+};
+
+window.showGuardiaDetalle = (id) => {
+  const g = (_state.data.guardias||[]).find(x=>x.id===id);
+  if (!g) return;
+  const D = _state.data;
+  const equipo = (D.tpmEquipos||[]).find(e=>e.id===g.idEquipo);
+
+  let overlay = document.getElementById('guardiaDetalleOverlay');
+  if (!overlay) {
+    overlay = document.createElement('div');
+    overlay.id = 'guardiaDetalleOverlay';
+    overlay.className = 'modal-overlay';
+    overlay.innerHTML = '<div class="modal" id="guardiaDetalleContent" style="max-width:640px"></div>';
+    overlay.addEventListener('click', e => { if(e.target===overlay) overlay.classList.remove('open'); });
+    document.body.appendChild(overlay);
+  }
+
+  const duracion = () => {
+    if (!g.horaLlamado || !g.horaFin) return '—';
+    const [h1,m1] = g.horaLlamado.split(':').map(Number);
+    const [h2,m2] = g.horaFin.split(':').map(Number);
+    let mins = (h2*60+m2)-(h1*60+m1);
+    if (mins<0) mins+=24*60;
+    const hh=Math.floor(mins/60),mm=mins%60;
+    return hh?`${hh}h ${mm}min`:`${mm}min`;
+  };
+
+  const estadoBadge = (e) => {
+    if (e==='RESUELTO') return '<span class="badge badge-hecho">✅ Resuelto</span>';
+    if (e==='EN SEGUIMIENTO') return '<span class="badge badge-proceso">🔄 En Seguimiento</span>';
+    if (e==='DERIVADO') return '<span class="badge badge-porhacer">🔧 Derivado</span>';
+    return '<span class="badge">'+(e||'—')+'</span>';
+  };
+
+  document.getElementById('guardiaDetalleContent').innerHTML = `
+    <div class="modal-title">🚨 Detalle de Intervención</div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:16px">
+      <div style="background:var(--bg2);border:1px solid var(--border);border-radius:8px;padding:14px">
+        <div style="font-size:0.65rem;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:0.1em;margin-bottom:4px">Fecha</div>
+        <div style="font-weight:600">${fmtDate(g.fecha)}</div>
+      </div>
+      <div style="background:var(--bg2);border:1px solid var(--border);border-radius:8px;padding:14px">
+        <div style="font-size:0.65rem;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:0.1em;margin-bottom:4px">Sede</div>
+        <div style="font-weight:600">${SEDE_LABELS[g.sede]||g.sede}</div>
+      </div>
+      <div style="background:var(--bg2);border:1px solid var(--border);border-radius:8px;padding:14px">
+        <div style="font-size:0.65rem;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:0.1em;margin-bottom:4px">Personal</div>
+        <div style="font-weight:600">${g.personal||'—'}</div>
+      </div>
+      <div style="background:var(--bg2);border:1px solid var(--border);border-radius:8px;padding:14px">
+        <div style="font-size:0.65rem;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:0.1em;margin-bottom:4px">Estado</div>
+        ${estadoBadge(g.estado)}
+      </div>
+    </div>
+    <div style="background:var(--bg2);border:1px solid var(--border);border-radius:8px;padding:14px;margin-bottom:12px">
+      <div style="font-size:0.65rem;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:0.1em;margin-bottom:8px">Horarios</div>
+      <div style="display:flex;gap:20px;font-family:var(--font-mono);font-size:0.85rem;flex-wrap:wrap">
+        ${g.horaLlamado?`<div><span style="color:var(--muted)">Llamado:</span> <strong>${g.horaLlamado}</strong></div>`:''}
+        ${g.horaLlegada?`<div><span style="color:var(--muted)">Llegada:</span> <strong>${g.horaLlegada}</strong></div>`:''}
+        ${g.horaFin?`<div><span style="color:var(--muted)">Fin:</span> <strong>${g.horaFin}</strong></div>`:''}
+        <div><span style="color:var(--muted)">Duración:</span> <strong style="color:var(--accent)">${duracion()}</strong></div>
+      </div>
+    </div>
+    ${g.idEquipo ? `
+    <div style="background:rgba(61,184,245,0.08);border:1px solid rgba(61,184,245,0.25);border-radius:8px;padding:14px;margin-bottom:12px">
+      <div style="font-size:0.65rem;font-weight:700;color:var(--accent);text-transform:uppercase;letter-spacing:0.1em;margin-bottom:6px">🔗 Equipo vinculado (Bitácora TPM)</div>
+      <div style="font-family:var(--font-mono);font-weight:700;color:var(--accent)">${g.idEquipo}</div>
+      ${equipo?`<div style="font-size:0.82rem;color:var(--text2);margin-top:4px">${equipo.desc||''}</div>`:''}
+    </div>` : ''}
+    <div style="background:var(--bg2);border:1px solid var(--border);border-radius:8px;padding:14px;margin-bottom:12px">
+      <div style="font-size:0.65rem;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:0.1em;margin-bottom:6px">Descripción de la falla</div>
+      <div style="font-size:0.88rem;line-height:1.5">${g.descFalla||'—'}</div>
+    </div>
+    <div style="background:var(--bg2);border:1px solid var(--border);border-radius:8px;padding:14px;margin-bottom:12px">
+      <div style="font-size:0.65rem;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:0.1em;margin-bottom:6px">Acciones realizadas</div>
+      <div style="font-size:0.88rem;line-height:1.5">${g.accion||'—'}</div>
+    </div>
+    ${g.fotos?.length ? `
+    <div style="margin-bottom:12px">
+      <div style="font-size:0.65rem;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:0.1em;margin-bottom:6px">Fotos</div>
+      <div class="photo-view-row">${g.fotos.map(f=>`<img class="photo-view-thumb" src="${f}" onclick="openLightbox('${f}')">`).join('')}</div>
+    </div>` : ''}
+    <div class="btn-row">
+      <button class="btn btn-ghost" onclick="document.getElementById('guardiaDetalleOverlay').classList.remove('open')">Cerrar</button>
+    </div>`;
+  overlay.classList.add('open');
+};
+
+window.deleteGuardia = async (id) => {
+  if (!confirm('¿Eliminar esta intervención?')) return;
+  await deleteDoc(doc(db,'bucor_guardias',id));
+  toast('🗑️ Intervención eliminada');
+};
+
+function initGuardiaAutocomplete() {
+  const input = document.getElementById('giEquipo');
+  const drop  = document.getElementById('giEquipoDrop');
+  const info  = document.getElementById('giEquipoInfo');
+  if (!input || !drop) return;
+
+  input.addEventListener('input', () => {
+    const q = input.value.toLowerCase().trim();
+    drop.innerHTML = '';
+    if (!q) { drop.classList.remove('open'); if(info)info.style.display='none'; return; }
+    const equipos = _state.data.tpmEquipos || [];
+    const matches = equipos.filter(e =>
+      (e.id||'').toLowerCase().includes(q) ||
+      (e.desc||'').toLowerCase().includes(q) ||
+      (e.sede||'').toLowerCase().includes(q)
+    ).slice(0,8);
+    if (!matches.length) {
+      drop.innerHTML = '<div class="autocomplete-empty">Sin resultados</div>';
+      drop.classList.add('open'); return;
+    }
+    matches.forEach(e => {
+      const item = document.createElement('div');
+      item.className = 'autocomplete-item';
+      item.innerHTML = `<strong>${e.id}</strong> — ${e.desc||''} <span style="color:var(--muted);font-size:0.75rem">${SEDE_LABELS[e.sede]||e.sede}</span>`;
+      item.onclick = () => {
+        input.value = e.id;
+        drop.classList.remove('open');
+        if (info) { info.textContent = '🔗 ' + (e.desc||e.id) + ' · ' + (SEDE_LABELS[e.sede]||e.sede); info.style.display='block'; }
+      };
+      drop.appendChild(item);
+    });
+    drop.classList.add('open');
+  });
+  document.addEventListener('click', e => { if(!input.contains(e.target)&&!drop.contains(e.target)) drop.classList.remove('open'); }, {once:false});
+}
+
+window.saveGuardia = async () => {
+  const fecha     = document.getElementById('giFecha').value;
+  const personal  = document.getElementById('giPersonal').value.trim();
+  const descFalla = document.getElementById('giDescFalla').value.trim();
+  const accion    = document.getElementById('giAccion').value.trim();
+
+  if (!fecha)     { toast('Ingresá la fecha de la intervención','error'); return; }
+  if (!personal)  { toast('Indicá quién intervino','error'); return; }
+  if (!descFalla) { toast('Describí la falla','error'); return; }
+
+  const data = {
+    fecha,
+    horaLlamado:  document.getElementById('giHoraLlamado').value || null,
+    horaLlegada:  document.getElementById('giHoraLlegada').value || null,
+    horaFin:      document.getElementById('giHoraFin').value     || null,
+    sede:         document.getElementById('giSede').value,
+    personal,
+    idEquipo:     document.getElementById('giEquipo').value.trim() || null,
+    descFalla,
+    accion,
+    estado:       document.getElementById('giEstado').value,
+    fotos:        window.getPhotos('modalGuardia'),
+    creadoPor:    _state.user?.nombre || '',
+    ts:           Date.now(),
+  };
+
+  await window._addDoc(window._collection(window._fdb,'bucor_guardias'), data);
+  closeModal('modalGuardia');
+  window.clearPhotos('modalGuardia');
+  ['giFecha','giHoraLlamado','giHoraLlegada','giHoraFin','giPersonal','giEquipo','giDescFalla','giAccion']
+    .forEach(id => { const el=document.getElementById(id); if(el) el.value=''; });
+  const info = document.getElementById('giEquipoInfo');
+  if (info) info.style.display='none';
+  toast('✅ Intervención registrada');
 };
 
 // ── BOOT ──────────────────────────────────────────
