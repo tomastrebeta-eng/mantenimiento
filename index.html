@@ -2582,7 +2582,7 @@ function getTareasComplianceThisWeek(forYear) {
   let mes, semana;
   if (yr === now.getFullYear()) {
     mes = (now.getMonth()+1).toString().padStart(2,'0');
-    semana = 'S' + Math.min(Math.ceil(now.getDate()/7), 4);
+    semana = 'S' + Math.ceil(now.getDate()/7);
   } else {
     mes = '12'; semana = 'S4';
   }
@@ -2603,7 +2603,7 @@ function renderSedeCompliance() {
   let mes, semana;
   if (yr === now.getFullYear()) {
     mes = (now.getMonth()+1).toString().padStart(2,'0');
-    semana = 'S' + Math.min(Math.ceil(now.getDate()/7), 4);
+    semana = 'S' + Math.ceil(now.getDate()/7);
   } else {
     mes = '12'; semana = 'S4';
   }
@@ -2956,13 +2956,17 @@ window.editRelev = async id => {
 // ══════════════════════════════════════════════════
 // ── TAREAS CRÍTICAS ────────────────────────────────
 // ══════════════════════════════════════════════════
+function weeksInMonth(year, month) {
+  // month is 1-12; last day of month = new Date(year, month, 0)
+  return Math.ceil(new Date(year, month, 0).getDate()/7);
+}
 function renderTareas() {
   const role = _state.user.rol;
   const D = _state.data;
   const now = new Date();
   const selYear  = parseInt(document.getElementById('tareasYear')?.value)||now.getFullYear();
   const selMonth = parseInt(document.getElementById('tareasMes')?.value)||(now.getMonth()+1);
-  const selWeek  = parseInt(document.getElementById('tareasSemana')?.value)||Math.min(Math.ceil(now.getDate()/7), 4);
+  const selWeek  = parseInt(document.getElementById('tareasSemana')?.value)||Math.ceil(now.getDate()/7);
   const mes = selMonth.toString().padStart(2,'0');
   const semana = 'S' + selWeek;
   const periodo = `${selYear}-${mes}-${semana}`;
@@ -2994,7 +2998,8 @@ function renderTareas() {
   // Period navigation
   const curNow = new Date();
   const curY = curNow.getFullYear(), curM = curNow.getMonth()+1;
-  const curW = Math.min(Math.ceil(curNow.getDate()/7), 4);
+  const curW = Math.ceil(curNow.getDate()/7);
+  const curWeeksInMonth = weeksInMonth(curY, curM);
 
   let html = `
   <div id="zonaManagerPanel" style="display:none;margin-bottom:14px;background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:16px">
@@ -3013,7 +3018,7 @@ function renderTareas() {
       ${['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'].map((m,i)=>`<option value="${i+1}"${i+1===curM?' selected':''}>${m}</option>`).join('')}
     </select>
     <select id="tareasSemana" onchange="refreshTareasPeriod()" style="background:var(--bg2);border:1px solid var(--border);border-radius:6px;padding:6px 10px;color:var(--text);font-size:0.82rem;outline:none">
-      ${[1,2,3,4].map(w=>`<option value="${w}"${w===curW?' selected':''}>Semana ${w}</option>`).join('')}
+      ${Array.from({length:curWeeksInMonth},(_,i)=>i+1).map(w=>`<option value="${w}"${w===curW?' selected':''}>Semana ${w}</option>`).join('')}
     </select>
     <span id="tareasPeriodLabel" style="font-family:var(--font-mono);font-size:0.8rem;color:var(--accent)"></span>
   </div>
@@ -3032,7 +3037,7 @@ window.selectTareasSede = (sede, el) => {
   const now = new Date();
   const selYear  = parseInt(document.getElementById('tareasYear')?.value)||now.getFullYear();
   const selMonth = parseInt(document.getElementById('tareasMes')?.value)||(now.getMonth()+1);
-  const selWeek  = parseInt(document.getElementById('tareasSemana')?.value)||Math.min(Math.ceil(now.getDate()/7), 4);
+  const selWeek  = parseInt(document.getElementById('tareasSemana')?.value)||Math.ceil(now.getDate()/7);
   const periodo  = `${selYear}-${String(selMonth).padStart(2,'0')}-S${selWeek}`;
   setTimeout(() => renderTareasForSede(sede, periodo), 0);
 };
@@ -4509,9 +4514,19 @@ window.refreshTareasPeriod = () => {
   const now = new Date();
   const yr  = parseInt(document.getElementById('tareasYear')?.value)||now.getFullYear();
   const mo  = parseInt(document.getElementById('tareasMes')?.value)||(now.getMonth()+1);
-  const wk  = parseInt(document.getElementById('tareasSemana')?.value)||Math.min(Math.ceil(now.getDate()/7), 4);
+
+  // Rebuild week options for the selected month/year (months can have 4 or 5 weeks)
+  const semanaSel = document.getElementById('tareasSemana');
+  const maxWeeks = weeksInMonth(yr, mo);
+  const prevWk = parseInt(semanaSel?.value) || Math.ceil(now.getDate()/7);
+  const wk = Math.min(prevWk, maxWeeks);
+  if (semanaSel) {
+    semanaSel.innerHTML = Array.from({length:maxWeeks},(_,i)=>i+1)
+      .map(w=>`<option value="${w}"${w===wk?' selected':''}>Semana ${w}</option>`).join('');
+  }
+
   const periodo = `${yr}-${String(mo).padStart(2,'0')}-S${wk}`;
-  
+
   // Find active sede
   const activeTab = document.querySelector('.sede-tab.active');
   const activeSede = activeTab?.dataset?.sede;
@@ -4811,21 +4826,21 @@ function getCoveredPeriodos(taskPeriodo, periodoKey) {
   const [pYear, pMonthStr, pWeekStr] = periodoKey.split('-');
   const pMonth = parseInt(pMonthStr);
   const pWeek  = parseInt((pWeekStr||'S1').replace('S',''));
+  const monthWeeks = weeksInMonth(parseInt(pYear), pMonth);
   const keys = [periodoKey];
   if (taskPeriodo==='QUINCENAL') {
     const qStart = pWeek<=2 ? 1 : 3;
-    keys.push(pYear+'-'+pMonthStr+'-S'+qStart);
-    keys.push(pYear+'-'+pMonthStr+'-S'+(qStart+1));
+    const qEnd   = pWeek<=2 ? 2 : monthWeeks;
+    for (let w=qStart; w<=qEnd; w++) keys.push(pYear+'-'+pMonthStr+'-S'+w);
   } else if (taskPeriodo==='MENSUAL') {
-    [1,2,3,4].forEach(w => keys.push(pYear+'-'+pMonthStr+'-S'+w));
+    for (let w=1; w<=monthWeeks; w++) keys.push(pYear+'-'+pMonthStr+'-S'+w);
   } else if (taskPeriodo==='BIMENSUAL') {
     const prevMonth = pMonth===1 ? 12 : pMonth-1;
     const prevYear  = pMonth===1 ? parseInt(pYear)-1 : parseInt(pYear);
     const prevStr   = String(prevMonth).padStart(2,'0');
-    [1,2,3,4].forEach(w => {
-      keys.push(pYear+'-'+pMonthStr+'-S'+w);
-      keys.push(String(prevYear)+'-'+prevStr+'-S'+w);
-    });
+    const prevWeeks = weeksInMonth(prevYear, prevMonth);
+    for (let w=1; w<=monthWeeks; w++) keys.push(pYear+'-'+pMonthStr+'-S'+w);
+    for (let w=1; w<=prevWeeks; w++) keys.push(String(prevYear)+'-'+prevStr+'-S'+w);
   }
   return [...new Set(keys)];
 }
