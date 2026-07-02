@@ -2307,9 +2307,9 @@ window.doLogout = () => {
 window.openModal = (id) => {
   document.getElementById(id).classList.add('open');
   const today = new Date().toISOString().slice(0,10);
-  document.querySelectorAll(`#${id} input[type=date]`).forEach(el => { if(!el.value) el.value = today; });
+  document.querySelectorAll(`#${id} input[type=date]`).forEach(el => { el.value = today; });
   const monthInput = document.querySelector(`#${id} input[type=month]`);
-  if (monthInput && !monthInput.value) monthInput.value = new Date().toISOString().slice(0,7);
+  if (monthInput) monthInput.value = new Date().toISOString().slice(0,7);
   initPhotoField(id);
   // Init TPM autocompletes
   if (id === 'modalNuevaTarea') {
@@ -2582,7 +2582,7 @@ function getTareasComplianceThisWeek(forYear) {
   let mes, semana;
   if (yr === now.getFullYear()) {
     mes = (now.getMonth()+1).toString().padStart(2,'0');
-    semana = 'S' + Math.ceil(now.getDate()/7);
+    semana = 'S' + Math.min(Math.ceil(now.getDate()/7), 4);
   } else {
     mes = '12'; semana = 'S4';
   }
@@ -2603,7 +2603,7 @@ function renderSedeCompliance() {
   let mes, semana;
   if (yr === now.getFullYear()) {
     mes = (now.getMonth()+1).toString().padStart(2,'0');
-    semana = 'S' + Math.ceil(now.getDate()/7);
+    semana = 'S' + Math.min(Math.ceil(now.getDate()/7), 4);
   } else {
     mes = '12'; semana = 'S4';
   }
@@ -2962,7 +2962,7 @@ function renderTareas() {
   const now = new Date();
   const selYear  = parseInt(document.getElementById('tareasYear')?.value)||now.getFullYear();
   const selMonth = parseInt(document.getElementById('tareasMes')?.value)||(now.getMonth()+1);
-  const selWeek  = parseInt(document.getElementById('tareasSemana')?.value)||Math.ceil(now.getDate()/7);
+  const selWeek  = parseInt(document.getElementById('tareasSemana')?.value)||Math.min(Math.ceil(now.getDate()/7), 4);
   const mes = selMonth.toString().padStart(2,'0');
   const semana = 'S' + selWeek;
   const periodo = `${selYear}-${mes}-${semana}`;
@@ -2994,7 +2994,7 @@ function renderTareas() {
   // Period navigation
   const curNow = new Date();
   const curY = curNow.getFullYear(), curM = curNow.getMonth()+1;
-  const curW = Math.ceil(curNow.getDate()/7);
+  const curW = Math.min(Math.ceil(curNow.getDate()/7), 4);
 
   let html = `
   <div id="zonaManagerPanel" style="display:none;margin-bottom:14px;background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:16px">
@@ -3032,7 +3032,7 @@ window.selectTareasSede = (sede, el) => {
   const now = new Date();
   const selYear  = parseInt(document.getElementById('tareasYear')?.value)||now.getFullYear();
   const selMonth = parseInt(document.getElementById('tareasMes')?.value)||(now.getMonth()+1);
-  const selWeek  = parseInt(document.getElementById('tareasSemana')?.value)||Math.ceil(now.getDate()/7);
+  const selWeek  = parseInt(document.getElementById('tareasSemana')?.value)||Math.min(Math.ceil(now.getDate()/7), 4);
   const periodo  = `${selYear}-${String(selMonth).padStart(2,'0')}-S${selWeek}`;
   setTimeout(() => renderTareasForSede(sede, periodo), 0);
 };
@@ -4509,7 +4509,7 @@ window.refreshTareasPeriod = () => {
   const now = new Date();
   const yr  = parseInt(document.getElementById('tareasYear')?.value)||now.getFullYear();
   const mo  = parseInt(document.getElementById('tareasMes')?.value)||(now.getMonth()+1);
-  const wk  = parseInt(document.getElementById('tareasSemana')?.value)||Math.ceil(now.getDate()/7);
+  const wk  = parseInt(document.getElementById('tareasSemana')?.value)||Math.min(Math.ceil(now.getDate()/7), 4);
   const periodo = `${yr}-${String(mo).padStart(2,'0')}-S${wk}`;
   
   // Find active sede
