@@ -1146,6 +1146,23 @@ tr:hover td { background:rgba(255,255,255,0.02); }
       </div>
 
       <!-- ═══════════════════════════════════════════
+           CONTROL PRESUPUESTARIO
+      ════════════════════════════════════════════ -->
+      <div class="section" id="sec-presupuesto">
+        <div class="page-header">
+          <div class="page-title-wrap">
+            <div class="page-eyebrow">Finanzas</div>
+            <div class="page-title">Control Presupuestario</div>
+          </div>
+          <div class="page-actions">
+            <button class="btn btn-ghost" onclick="abrirModalPresupuestoMes()">📅 Definir Presupuesto del Mes</button>
+            <button class="btn btn-primary" onclick="openModal('modalPresupuestoGasto')">+ Nuevo Gasto</button>
+          </div>
+        </div>
+        <div id="presupuestoContent"></div>
+      </div>
+
+      <!-- ═══════════════════════════════════════════
            CONTROLES ALEATORIOS
       ════════════════════════════════════════════ -->
       <div class="section" id="sec-controles">
@@ -1454,6 +1471,46 @@ tr:hover td { background:rgba(255,255,255,0.02); }
     <div class="btn-row">
       <button class="btn btn-primary" onclick="saveCaja()">Guardar</button>
       <button class="btn btn-ghost" onclick="closeModal('modalCaja')">Cancelar</button>
+    </div>
+  </div>
+</div>
+
+<!-- CONTROL PRESUPUESTARIO - DEFINIR PRESUPUESTO DEL MES -->
+<div class="modal-overlay" id="modalPresupuestoMes">
+  <div class="modal">
+    <div class="modal-title">📅 Definir Presupuesto del Mes</div>
+    <div class="modal-sub">Monto habilitado ese mes para obras / tareas de mantenimiento costosas.</div>
+    <div class="form-grid">
+      <div class="field"><label>Mes</label><input type="month" id="pmMes"></div>
+      <div class="field"><label>Monto asignado ($)</label><input type="number" id="pmMonto" placeholder="0" step="0.01" min="0"></div>
+    </div>
+    <div class="btn-row">
+      <button class="btn btn-primary" onclick="savePresupuestoMes()">Guardar</button>
+      <button class="btn btn-ghost" onclick="closeModal('modalPresupuestoMes')">Cancelar</button>
+    </div>
+  </div>
+</div>
+
+<!-- CONTROL PRESUPUESTARIO - NUEVO GASTO -->
+<div class="modal-overlay" id="modalPresupuestoGasto">
+  <div class="modal">
+    <div class="modal-title">🧾 Nuevo Gasto</div>
+    <div class="form-grid">
+      <div class="field"><label>Fecha</label><input type="date" id="pgFecha"></div>
+      <div class="field"><label>Sede</label>
+        <select id="pgSede">
+          <option value="CERRO">Cerro</option>
+          <option value="DEAN FUNES">Dean Funes</option>
+          <option value="RUTA 20">Ruta 20</option>
+          <option value="ARGUELLO">Argüello</option>
+        </select>
+      </div>
+      <div class="field"><label>Monto ($)</label><input type="number" id="pgMonto" placeholder="0" step="0.01" min="0"></div>
+      <div class="field full"><label>Descripción</label><input type="text" id="pgDesc" placeholder="En qué se gastó..."></div>
+    </div>
+    <div class="btn-row">
+      <button class="btn btn-primary" onclick="savePresupuestoGasto()">Guardar</button>
+      <button class="btn btn-ghost" onclick="closeModal('modalPresupuestoGasto')">Cancelar</button>
     </div>
   </div>
 </div>
@@ -1978,7 +2035,7 @@ const ROLE_COLORS = { director:'#e8a020', encargado:'#2d8cf0', maestranza:'#27c9
 
 // NAV CONFIG: which sections each role can see
 const NAV_BY_ROLE = {
-  director:    ['dashboard','tareas','tpm','relevamiento','gestion','qrvest','qrotras','caja','controles','socios','guardias','admin'],
+  director:    ['dashboard','tareas','tpm','relevamiento','gestion','qrvest','qrotras','caja','presupuesto','controles','socios','guardias','admin'],
   encargado:   ['tareas','tpm','relevamiento','qrvest','qrotras','guardias'],
   maestranza:  ['tareas'],
   contratista: ['relevamiento'],
@@ -1992,6 +2049,7 @@ const NAV_META = {
   qrvest:       { label:'QR Vestuarios',     icon:'🚿' },
   qrotras:      { label:'QR Otras Áreas',    icon:'📨' },
   caja:         { label:'Control de Caja',   icon:'💰' },
+  presupuesto:  { label:'Control Presupuestario', icon:'🧾' },
   admin:        { label:'Administración',    icon:'⚙️' },
   controles:    { label:'Controles',         icon:'🎲' },
   socios:       { label:'Indicadores Socios', icon:'👥' },
@@ -2005,6 +2063,7 @@ window._state = {
   dashYear: new Date().getFullYear(),
   goYear: new Date().getFullYear(),
   goSede: 'CERRO',
+  presupuestoMes: new Date().toISOString().slice(0,7),
   data: {
     users: [],
     relevamiento: [],
@@ -2022,6 +2081,8 @@ window._state = {
     zonas: [],
     sociosIndicadores: [],
     guardias: [],
+    presupuestoMensual: [],
+    presupuestoGastos: [],
   }
 };
 
@@ -2226,6 +2287,7 @@ function renderSection(id) {
   if (id === 'controles')    renderControles();
   if (id === 'socios')       renderSocios();
   if (id === 'guardias')     renderGuardias();
+  if (id === 'presupuesto')  renderPresupuesto();
 }
 
 // ── SIDEBAR TOGGLE ─────────────────────────────────
@@ -2263,6 +2325,8 @@ function startListeners() {
   listen('bucor_zonas', 'zonas');
   listen('bucor_socios_indicadores', 'sociosIndicadores');
   listen('bucor_guardias',           'guardias');
+  listen('bucor_presupuesto_mensual','presupuestoMensual');
+  listen('bucor_presupuesto_gastos', 'presupuestoGastos');
 }
 
 // ── SYNC STATUS ────────────────────────────────────
@@ -3294,6 +3358,110 @@ window.deleteCaja = async id => {
 };
 
 // ══════════════════════════════════════════════════
+// ── CONTROL PRESUPUESTARIO ────────────────────────
+// ══════════════════════════════════════════════════
+function renderPresupuesto() {
+  const mesSel = _state.presupuestoMes || today().slice(0,7);
+  _state.presupuestoMes = mesSel;
+
+  const presu   = _state.data.presupuestoMensual.find(p => p.mes === mesSel);
+  const monto   = presu?.monto || 0;
+  const gastosMes = _state.data.presupuestoGastos.filter(g => (g.fecha||'').slice(0,7) === mesSel);
+  const gastado = gastosMes.reduce((s,g) => s + (parseFloat(g.monto)||0), 0);
+  const saldo   = monto - gastado;
+
+  const [y,m] = mesSel.split('-');
+  const mesLabel = new Date(Number(y), Number(m)-1, 1).toLocaleDateString('es-AR',{month:'long',year:'numeric'});
+
+  document.getElementById('presupuestoContent').innerHTML = `
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;flex-wrap:wrap;gap:8px">
+      <input type="month" id="presMesFilt" value="${mesSel}" onchange="cambiarMesPresupuesto(this.value)"
+        style="background:var(--bg2);border:1px solid var(--border);border-radius:7px;padding:8px 12px;color:var(--text);font-size:0.85rem;outline:none">
+      <button class="btn btn-ghost btn-sm" onclick="exportToXLSX('presupuesto')" title="Exportar">📥</button>
+    </div>
+    <div class="cards-grid" style="grid-template-columns:repeat(auto-fit,minmax(170px,1fr));margin-bottom:18px">
+      <div class="stat-card c-blue">
+        <div class="stat-label">Presupuesto · ${mesLabel}</div>
+        <div class="stat-value" style="font-size:1.3rem">${fmt$(monto)}</div>
+        <div class="stat-sub">${monto?'asignado este mes':'sin definir — cargalo arriba'}</div>
+      </div>
+      <div class="stat-card c-yellow">
+        <div class="stat-label">Gastado</div>
+        <div class="stat-value" style="font-size:1.3rem">${fmt$(gastado)}</div>
+        <div class="stat-sub">${gastosMes.length} gasto${gastosMes.length===1?'':'s'} cargado${gastosMes.length===1?'':'s'}</div>
+      </div>
+      <div class="stat-card ${saldo>=0?'c-green':'c-red'}">
+        <div class="stat-label">${saldo>=0?'Sobrante':'Faltante'}</div>
+        <div class="stat-value" style="font-size:1.3rem">${fmt$(Math.abs(saldo))}</div>
+        <div class="stat-sub">${monto?((gastado/monto*100).toFixed(0)+'% del presupuesto usado'):'—'}</div>
+      </div>
+    </div>
+    <div class="tbl-wrap"><table>
+      <thead><tr><th>Fecha</th><th>Sede</th><th>Descripción</th><th>Monto</th><th></th></tr></thead>
+      <tbody>${!gastosMes.length ? `<tr><td colspan="5"><div class="empty"><div class="empty-icon">🧾</div><div class="empty-title">Sin gastos cargados este mes</div></div></td></tr>` :
+        [...gastosMes].sort((a,b)=>(b.fecha||'').localeCompare(a.fecha||'')).map(g=>`<tr>
+          <td style="font-family:var(--font-mono);font-size:0.78rem">${fmtDate(g.fecha)}</td>
+          <td><span class="badge badge-sede">${SEDE_LABELS[g.sede]||g.sede||'—'}</span></td>
+          <td style="font-size:0.83rem">${g.descripcion||'—'}</td>
+          <td style="font-family:var(--font-mono);font-size:0.85rem;font-weight:600">${fmt$(g.monto)}</td>
+          <td><button class="action-btn" onclick="deletePresupuestoGasto('${g.id}')">🗑️</button></td>
+        </tr>`).join('')}
+      </tbody>
+    </table></div>`;
+}
+
+window.cambiarMesPresupuesto = (mes) => {
+  _state.presupuestoMes = mes;
+  renderPresupuesto();
+};
+
+window.abrirModalPresupuestoMes = () => {
+  openModal('modalPresupuestoMes');
+  const mes = _state.presupuestoMes || today().slice(0,7);
+  document.getElementById('pmMes').value = mes;
+  const existing = _state.data.presupuestoMensual.find(p=>p.mes===mes);
+  document.getElementById('pmMonto').value = existing?.monto || '';
+};
+
+window.savePresupuestoMes = async () => {
+  const mes = document.getElementById('pmMes').value;
+  const monto = parseFloat(document.getElementById('pmMonto').value)||0;
+  if (!mes) { toast('Seleccioná el mes','error'); return; }
+  await window._setDoc(window._doc(window._fdb,'bucor_presupuesto_mensual',mes),
+    { mes, monto, ts:Date.now(), actualizadoPor:_state.user?.nombre||'' }, {merge:true});
+  closeModal('modalPresupuestoMes');
+  _state.presupuestoMes = mes;
+  toast('✅ Presupuesto guardado para ' + mes);
+};
+
+window.savePresupuestoGasto = async () => {
+  const fecha = document.getElementById('pgFecha').value;
+  const monto = parseFloat(document.getElementById('pgMonto').value)||0;
+  const descripcion = document.getElementById('pgDesc').value.trim();
+  if (!fecha)       { toast('Ingresá la fecha','error'); return; }
+  if (!monto)       { toast('Ingresá el monto','error'); return; }
+  if (!descripcion) { toast('Describí el gasto','error'); return; }
+  const data = {
+    fecha, monto,
+    sede:        document.getElementById('pgSede').value,
+    descripcion,
+    creadoPor:   _state.user?.nombre||'',
+    ts:          Date.now(),
+  };
+  await window._addDoc(window._collection(window._fdb,'bucor_presupuesto_gastos'), data);
+  closeModal('modalPresupuestoGasto');
+  ['pgMonto','pgDesc'].forEach(id=>{const el=document.getElementById(id); if(el) el.value='';});
+  _state.presupuestoMes = fecha.slice(0,7);
+  toast('✅ Gasto registrado');
+};
+
+window.deletePresupuestoGasto = async (id) => {
+  if (!confirm('¿Eliminar este gasto?')) return;
+  await deleteDoc(doc(db,'bucor_presupuesto_gastos',id));
+  toast('🗑️ Gasto eliminado');
+};
+
+// ══════════════════════════════════════════════════
 // ── GESTIÓN OPERATIVA ─────────────────────────────
 // ══════════════════════════════════════════════════
 function renderGestion() {
@@ -3501,6 +3669,7 @@ function renderTPM() {
           <option value="CORRECTIVO">Correctivo</option>
           <option value="PREVENTIVO">Preventivo</option>
           <option value="MEJORA">Mejora</option>
+          <option value="GUARDIA">Guardia</option>
         </select>
         <select id="bitEstFilt" onchange="filterBitacora2(document.getElementById('bitSearch').value)"
           style="background:var(--bg2);border:1px solid var(--border);border-radius:7px;padding:8px 10px;color:var(--text);font-size:0.82rem;outline:none">
@@ -3983,7 +4152,7 @@ function renderBitacoraRows(items) {
     <tbody>${[...items].sort((a,b)=>(b.ts||0)-(a.ts||0)).map(b=>`<tr>
       <td style="font-family:var(--font-mono);font-size:0.78rem">${fmtDate(b.fechaReporte)}</td>
       <td><span class="badge badge-sede">${SEDE_LABELS[b.sede]||b.sede||'—'}</span></td>
-      <td style="font-size:0.75rem;font-family:var(--font-mono)">${b.idEquipo||'—'}${b.planId?'<div style="color:var(--accent);font-size:0.68rem">🔗 Prev.</div>':''}</td>
+      <td style="font-size:0.75rem;font-family:var(--font-mono)">${b.idEquipo||'—'}${b.planId?'<div style="color:var(--accent);font-size:0.68rem">🔗 Prev.</div>':''}${b.guardiaId?'<div style="color:var(--red);font-size:0.68rem">🚨 Guardia</div>':''}</td>
       <td><span class="chip">${b.tipoMant||'—'}</span></td>
       <td><span class="badge badge-${(b.prioridad||'').toLowerCase()==='alta'?'alta':(b.prioridad||'').toLowerCase()==='media'?'media':'baja'}">${b.prioridad||'—'}</span></td>
       <td style="font-size:0.82rem;max-width:180px"><strong>${b.descripcion||'—'}</strong></td>
@@ -4958,6 +5127,11 @@ window.exportToXLSX = async (section) => {
       Descripción: b.descripcion, Acción: b.accion||'',
       Responsable: b.responsable||'', 'Fecha Cierre': b.fechaCierre||''
     }));
+  } else if (section === 'presupuesto') {
+    filename = 'control_presupuestario';
+    data = D.presupuestoGastos.map(g=>({
+      Fecha: g.fecha, Sede: g.sede, Descripción: g.descripcion, Monto: g.monto
+    }));
   } else if (section === 'relevamiento') {
     filename = 'relevamiento_obras';
     data = D.relevamiento.map(r=>({
@@ -5443,7 +5617,27 @@ window.saveGuardia = async () => {
     ts:           Date.now(),
   };
 
-  await window._addDoc(window._collection(window._fdb,'bucor_guardias'), data);
+  const guardiaRef = await window._addDoc(window._collection(window._fdb,'bucor_guardias'), data);
+
+  // Vincular la intervención a Bitácora TPM (sub-solapa Bitácora)
+  const ESTADO_GUARDIA_A_BITACORA = { 'RESUELTO':'CERRADO', 'EN SEGUIMIENTO':'EN CURSO', 'DERIVADO':'ABIERTO' };
+  const estadoBit = ESTADO_GUARDIA_A_BITACORA[data.estado] || 'ABIERTO';
+  await window._addDoc(window._collection(window._fdb,'bucor_tpm_log'), {
+    fechaReporte: data.fecha,
+    sede:         data.sede,
+    idEquipo:     data.idEquipo || '',
+    tipoMant:     'GUARDIA',
+    prioridad:    'ALTA',
+    estado:       estadoBit,
+    responsable:  data.personal,
+    descripcion:  data.descFalla,
+    accion:       data.accion,
+    fotos:        data.fotos,
+    guardiaId:    guardiaRef.id,
+    ...(estadoBit==='CERRADO' ? {fechaCierre: data.fecha} : {}),
+    ts:           Date.now(),
+  });
+
   closeModal('modalGuardia');
   window.clearPhotos('modalGuardia');
   ['giFecha','giHoraLlamado','giHoraLlegada','giHoraFin','giPersonal','giEquipo','giDescFalla','giAccion']
