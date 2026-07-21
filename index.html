@@ -9,6 +9,9 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="BUCOR">
 <title>BUCOR · Mantenimiento</title>
+<link rel="manifest" href="manifest.json">
+<link rel="icon" type="image/png" sizes="32x32" href="icons/favicon-32.png">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
 <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@800;900&family=Barlow+Condensed:wght@400;600;700;800;900&family=Barlow:wght@300;400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
 <style>
 :root {
@@ -964,6 +967,7 @@ tr:hover td { background:rgba(255,255,255,0.02); }
       <button class="btn-login" id="btnLogin" onclick="doLogin()">Ingresar</button>
       <div class="login-error" id="loginError">Usuario o contraseña incorrectos.</div>
     </div>
+    <button id="installBtnLogin" onclick="triggerInstallPrompt()" style="display:none;margin:14px auto 0;background:none;border:1px solid var(--border,#2a3f5f);color:#3db8f5;border-radius:8px;padding:8px 16px;font-size:0.8rem;font-family:inherit;cursor:pointer">⬇️ Instalar como aplicación</button>
     <div class="login-footer">v1.0 · BUCOR Mantenimiento · 2026</div>
   </div>
 </div>
@@ -976,6 +980,7 @@ tr:hover td { background:rgba(255,255,255,0.02); }
     <div class="topbar-sep">|</div>
     <div class="topbar-module" id="topModule">Dashboard</div>
     <div class="topbar-right">
+      <button class="btn btn-ghost btn-sm" id="installBtn" onclick="triggerInstallPrompt()" style="display:none" title="Instalar BUCOR como aplicación">⬇️ Instalar App</button>
       <div class="sync-dot" id="syncDot"></div>
       <div class="user-pill" onclick="showSection('perfil')">
         <div class="user-avatar" id="userAvatar"></div>
@@ -5646,6 +5651,42 @@ window.saveGuardia = async () => {
   if (info) info.style.display='none';
   toast('✅ Intervención registrada');
 };
+
+// ── PWA: INSTALACIÓN (Windows / Android) ──────────
+let _deferredInstallPrompt = null;
+window.addEventListener('beforeinstallprompt', (e) => {
+  e.preventDefault();
+  _deferredInstallPrompt = e;
+  ['installBtn','installBtnLogin'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.style.display = '';
+  });
+});
+window.triggerInstallPrompt = async () => {
+  if (!_deferredInstallPrompt) return;
+  _deferredInstallPrompt.prompt();
+  await _deferredInstallPrompt.userChoice;
+  _deferredInstallPrompt = null;
+  ['installBtn','installBtnLogin'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.style.display = 'none';
+  });
+};
+window.addEventListener('appinstalled', () => {
+  _deferredInstallPrompt = null;
+  ['installBtn','installBtnLogin'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.style.display = 'none';
+  });
+  toast('✅ App instalada');
+});
+
+// ── PWA: SERVICE WORKER ───────────────────────────
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('sw.js').catch(() => {});
+  });
+}
 
 // ── BOOT ──────────────────────────────────────────
 bootApp();
