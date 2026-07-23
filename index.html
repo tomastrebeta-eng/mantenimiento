@@ -4504,6 +4504,18 @@ window.cycleTPMEstado = async (id, current) => {
   }
   
   await setDoc(doc(db,'bucor_tpm_log',id), { estado: next, ...extra }, { merge:true });
+
+  // Si este registro viene de una Guardia, reflejar el cambio de estado allí también
+  const bitacoraEntry = _state.data.tpmBitacora.find(b=>b.id===id);
+  if (bitacoraEntry?.guardiaId) {
+    const ESTADO_BITACORA_A_GUARDIA = { 'ABIERTO':'DERIVADO', 'EN CURSO':'EN SEGUIMIENTO', 'CERRADO':'RESUELTO' };
+    await setDoc(doc(db,'bucor_guardias',bitacoraEntry.guardiaId), {
+      estado: ESTADO_BITACORA_A_GUARDIA[next] || 'DERIVADO',
+      estadoDesdeBitacora: true,
+      estadoDesdeBitacoraTs: Date.now(),
+    }, { merge:true });
+  }
+
   toast(next === 'CERRADO' ? '✅ Ticket cerrado' : next === 'EN CURSO' ? '🔄 En curso' : '🔴 Reabierto');
 };
 
@@ -5359,11 +5371,18 @@ function renderGuardias() {
   if (filtEst)     filtered = filtered.filter(g => g.estado === filtEst);
   if (filtPersonal) filtered = filtered.filter(g => (g.personal||'').toLowerCase().includes(filtPersonal));
 
-  const estadoBadge = (e) => {
-    if (e === 'RESUELTO')      return '<span class="badge badge-hecho">✅ Resuelto</span>';
-    if (e === 'EN SEGUIMIENTO') return '<span class="badge badge-proceso">🔄 En Seguimiento</span>';
-    if (e === 'DERIVADO')      return '<span class="badge badge-porhacer">🔧 Derivado</span>';
-    return '<span class="badge">'+(e||'—')+'</span>';
+  const estadoBadge = (g) => {
+    const e = g.estado;
+    let badge;
+    if (e === 'RESUELTO')      badge = '<span class="badge badge-hecho">✅ Resuelto</span>';
+    else if (e === 'EN SEGUIMIENTO') badge = '<span class="badge badge-proceso">🔄 En Seguimiento</span>';
+    else if (e === 'DERIVADO')      badge = '<span class="badge badge-porhacer">🔧 Derivado</span>';
+    else badge = '<span class="badge">'+(e||'—')+'</span>';
+    if (g.estadoDesdeBitacora) {
+      const ts = g.estadoDesdeBitacoraTs ? ' · ' + new Date(g.estadoDesdeBitacoraTs).toLocaleString('es-AR') : '';
+      badge += ` <span title="Estado actualizado desde Bitácora TPM${ts}" style="cursor:help">📋</span>`;
+    }
+    return badge;
   };
 
   const duracion = (g) => {
@@ -5446,7 +5465,7 @@ function renderGuardias() {
                 <td style="font-family:var(--font-mono);font-size:0.8rem;text-align:center">${duracion(g)}</td>
                 <td>${eqLabel}</td>
                 <td style="max-width:200px"><div style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:0.82rem" title="${(g.descFalla||'').replace(/"/g,'&quot;')}">${g.descFalla||'—'}</div></td>
-                <td>${estadoBadge(g.estado)}</td>
+                <td>${estadoBadge(g)}</td>
                 <td style="white-space:nowrap">
                   ${fotoBtn}
                   <button class="action-btn edit" title="Detalle" onclick="showGuardiaDetalle('${g.id}')">🔍</button>
@@ -5493,11 +5512,18 @@ window.showGuardiaDetalle = (id) => {
     return hh?`${hh}h ${mm}min`:`${mm}min`;
   };
 
-  const estadoBadge = (e) => {
-    if (e==='RESUELTO') return '<span class="badge badge-hecho">✅ Resuelto</span>';
-    if (e==='EN SEGUIMIENTO') return '<span class="badge badge-proceso">🔄 En Seguimiento</span>';
-    if (e==='DERIVADO') return '<span class="badge badge-porhacer">🔧 Derivado</span>';
-    return '<span class="badge">'+(e||'—')+'</span>';
+  const estadoBadge = (g) => {
+    const e = g.estado;
+    let badge;
+    if (e==='RESUELTO') badge = '<span class="badge badge-hecho">✅ Resuelto</span>';
+    else if (e==='EN SEGUIMIENTO') badge = '<span class="badge badge-proceso">🔄 En Seguimiento</span>';
+    else if (e==='DERIVADO') badge = '<span class="badge badge-porhacer">🔧 Derivado</span>';
+    else badge = '<span class="badge">'+(e||'—')+'</span>';
+    if (g.estadoDesdeBitacora) {
+      const ts = g.estadoDesdeBitacoraTs ? ' · ' + new Date(g.estadoDesdeBitacoraTs).toLocaleString('es-AR') : '';
+      badge += ` <span title="Estado actualizado desde Bitácora TPM${ts}" style="cursor:help">📋</span>`;
+    }
+    return badge;
   };
 
   document.getElementById('guardiaDetalleContent').innerHTML = `
@@ -5517,7 +5543,7 @@ window.showGuardiaDetalle = (id) => {
       </div>
       <div style="background:var(--bg2);border:1px solid var(--border);border-radius:8px;padding:14px">
         <div style="font-size:0.65rem;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:0.1em;margin-bottom:4px">Estado</div>
-        ${estadoBadge(g.estado)}
+        ${estadoBadge(g)}
       </div>
     </div>
     <div style="background:var(--bg2);border:1px solid var(--border);border-radius:8px;padding:14px;margin-bottom:12px">
