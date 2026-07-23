@@ -1,7 +1,7 @@
 {
-  "name": "BUCOR Mantenimiento",
+  "name": "BUCOR Dirección Operativa",
   "short_name": "BUCOR",
-  "description": "Sistema de gestión de mantenimiento, guardias y control operativo de BUCOR.",
+  "description": "Dirección Operativa de BUCOR: gestión de mantenimiento, guardias y control operativo.",
   "id": "./",
   "start_url": "./index.html",
   "scope": "./",

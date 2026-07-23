@@ -8,7 +8,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="BUCOR">
-<title>BUCOR · Mantenimiento</title>
+<title>BUCOR · Dirección Operativa</title>
 <link rel="manifest" href="manifest.json">
 <link rel="icon" type="image/png" sizes="32x32" href="icons/favicon-32.png">
 <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
@@ -938,7 +938,7 @@ tr:hover td { background:rgba(255,255,255,0.02); }
       <span class="bucor-logo-text">bucor</span>
       <span class="bucor-logo-sub">FUNDACIÓN EDUCATIVA Y DEPORTIVA</span>
     </div>
-    <div class="bucor-module-tag">Sistema de Mantenimiento</div>
+    <div class="bucor-module-tag">Dirección Operativa</div>
   </div>
   <div class="loading-bar-wrap"><div class="loading-bar" id="loadBar"></div></div>
   <div class="loading-status" id="loadStatus">Iniciando...</div>
@@ -952,7 +952,7 @@ tr:hover td { background:rgba(255,255,255,0.02); }
         <span class="bucor-logo-text">bucor</span>
         <span class="bucor-logo-sub">FUNDACIÓN EDUCATIVA Y DEPORTIVA</span>
       </div>
-      <div class="bucor-module-tag" style="margin-top:8px">Sistema de Mantenimiento</div>
+      <div class="bucor-module-tag" style="margin-top:8px">Dirección Operativa</div>
     </div>
     <div class="login-card">
       <div class="login-title">Iniciar Sesión</div>
@@ -968,7 +968,7 @@ tr:hover td { background:rgba(255,255,255,0.02); }
       <div class="login-error" id="loginError">Usuario o contraseña incorrectos.</div>
     </div>
     <button id="installBtnLogin" onclick="triggerInstallPrompt()" style="display:none;margin:14px auto 0;background:none;border:1px solid var(--border,#2a3f5f);color:#3db8f5;border-radius:8px;padding:8px 16px;font-size:0.8rem;font-family:inherit;cursor:pointer">⬇️ Instalar como aplicación</button>
-    <div class="login-footer">v1.0 · BUCOR Mantenimiento · 2026</div>
+    <div class="login-footer">v1.0 · BUCOR Dirección Operativa · 2026</div>
   </div>
 </div>
 
@@ -4455,7 +4455,7 @@ window.saveSociosIndicador = async () => {
     createCalendarEvent(
       '👥 Cargar indicadores socios — ' + sede,
       reminderDate,
-      'Recordatorio: cargar certificados, fichas y débito en BUCOR Mantenimiento.\nSe programa el día 6 por menor churn post-reinscripción.'
+      'Recordatorio: cargar certificados, fichas y débito en BUCOR Dirección Operativa.\nSe programa el día 6 por menor churn post-reinscripción.'
     );
     toast('📅 Recordatorio creado para el 6/' + String(nextM).padStart(2,'0') + '/' + nextY);
   }
@@ -5209,7 +5209,7 @@ window.exportFullBackup = async () => {
   const D = _state.data;
   const backup = {
     exportDate: new Date().toISOString(),
-    version: 'BUCOR Mantenimiento v2.0',
+    version: 'BUCOR Dirección Operativa v2.0',
     data: {
       tareas: D.tareas,
       tareasLog: D.tareasLog,
