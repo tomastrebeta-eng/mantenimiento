@@ -1142,6 +1142,7 @@ tr:hover td { background:rgba(255,255,255,0.02); }
             <button class="btn btn-primary" onclick="openModal('modalCaja')">+ Nuevo Control</button>
           </div>
         </div>
+        <div id="cajaFilterBar"></div>
         <div class="inner-tabs">
           <button class="inner-tab active" onclick="cajaTab('cierres',this)">💰 Cierres de Caja</button>
           <button class="inner-tab" onclick="cajaTab('ajustes',this)">⚖️ Ajustes de Caja</button>
@@ -1460,6 +1461,7 @@ tr:hover td { background:rgba(255,255,255,0.02); }
         <select id="cajaSemana">
           <option value="S1">S1</option><option value="S2">S2</option>
           <option value="S3">S3</option><option value="S4">S4</option>
+          <option value="S5">S5</option>
         </select>
       </div>
       <div class="field"><label>Responsable (cajera)</label><input type="text" id="cajaResp" placeholder="Nombre"></div>
@@ -2069,6 +2071,9 @@ window._state = {
   goYear: new Date().getFullYear(),
   goSede: 'CERRO',
   presupuestoMes: new Date().toISOString().slice(0,7),
+  cajaFiltroMes: new Date().toISOString().slice(0,7),
+  cajaFiltroSemana: 'S' + Math.ceil(new Date().getDate()/7),
+  cajaActiveTab: 'cierres',
   data: {
     users: [],
     relevamiento: [],
@@ -3301,26 +3306,80 @@ window.deleteQR = async (type, id) => {
 // ── CONTROL DE CAJA ───────────────────────────────
 // ══════════════════════════════════════════════════
 function renderCaja() {
-  renderCajaTab('cierres');
+  const mesSel = _state.cajaFiltroMes || 'TODOS';
+  _state.cajaFiltroMes = mesSel;
+  const maxWeeks = (mesSel !== 'TODOS') ? weeksInMonth(...mesSel.split('-').map(Number)) : 5;
+  let semSel = _state.cajaFiltroSemana || 'TODAS';
+  if (semSel !== 'TODAS' && parseInt(semSel.replace('S',''),10) > maxWeeks) semSel = 'TODAS';
+  _state.cajaFiltroSemana = semSel;
+
+  document.getElementById('cajaFilterBar').innerHTML = `
+    <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;margin-bottom:14px">
+      <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+        <input type="month" id="cajaFiltMes" value="${mesSel==='TODOS'?'':mesSel}" onchange="cambiarCajaMes(this.value)"
+          style="background:var(--bg2);border:1px solid var(--border);border-radius:7px;padding:8px 12px;color:var(--text);font-size:0.85rem;outline:none">
+        <select id="cajaFiltSemana" onchange="cambiarCajaSemana(this.value)"
+          style="background:var(--bg2);border:1px solid var(--border);border-radius:7px;padding:8px 12px;color:var(--text);font-size:0.85rem;outline:none">
+          <option value="TODAS"${semSel==='TODAS'?' selected':''}>Todas las semanas</option>
+          ${Array.from({length:maxWeeks},(_,i)=>i+1).map(w=>`<option value="S${w}"${semSel==='S'+w?' selected':''}>Semana ${w}</option>`).join('')}
+        </select>
+        <button class="btn btn-ghost btn-sm" onclick="cajaFiltroHoy()" title="Volver a la fecha actual">📅 Hoy</button>
+        <button class="btn btn-ghost btn-sm" onclick="cajaFiltroTodo()" title="Ver todo el historial">🗂️ Ver todo</button>
+      </div>
+      <button class="btn btn-ghost btn-sm" onclick="exportToXLSX('caja')" title="Exportar todo lo consignado">📥 Exportar todo (Excel)</button>
+    </div>`;
+
+  renderCajaTab(_state.cajaActiveTab || 'cierres');
 }
+
+window.cambiarCajaMes = (mes) => {
+  _state.cajaFiltroMes = mes || 'TODOS';
+  renderCaja();
+};
+
+window.cambiarCajaSemana = (sem) => {
+  _state.cajaFiltroSemana = sem;
+  renderCaja();
+};
+
+window.cajaFiltroHoy = () => {
+  const now = new Date();
+  _state.cajaFiltroMes = today().slice(0,7);
+  _state.cajaFiltroSemana = 'S' + Math.ceil(now.getDate()/7);
+  renderCaja();
+};
+
+window.cajaFiltroTodo = () => {
+  _state.cajaFiltroMes = 'TODOS';
+  _state.cajaFiltroSemana = 'TODAS';
+  renderCaja();
+};
 
 window.cajaTab = (tab, el) => {
   document.querySelectorAll('.inner-tab').forEach(t=>t.classList.remove('active'));
   document.querySelectorAll('.inner-content').forEach(c=>c.classList.remove('active'));
   el.classList.add('active');
   document.getElementById('caja-'+tab).classList.add('active');
+  _state.cajaActiveTab = tab;
   renderCajaTab(tab);
 };
 
 function renderCajaTab(tab) {
-  const items = _state.data.caja.filter(c=>c.tipo===(tab==='cierres'?'cierre':'ajuste'));
+  _state.cajaActiveTab = tab;
+  const mesSel = _state.cajaFiltroMes || 'TODOS';
+  const semSel = _state.cajaFiltroSemana || 'TODAS';
+  const items = _state.data.caja.filter(c=>
+    c.tipo===(tab==='cierres'?'cierre':'ajuste') &&
+    (mesSel==='TODOS' || c.mes===mesSel) &&
+    (semSel==='TODAS' || c.semana===semSel)
+  );
   const containerId = 'caja-'+tab;
 
   document.getElementById(containerId).innerHTML = `
     <div class="tbl-wrap"><table>
       <thead><tr><th>Sede</th><th>Mes</th><th>Semana</th><th>Responsable</th><th>Estado</th><th>Valor</th><th>Motivo</th><th></th></tr></thead>
       <tbody>
-        ${!items.length ? `<tr><td colspan="8"><div class="empty"><div class="empty-icon">💰</div><div class="empty-title">Sin registros</div></div></td></tr>` :
+        ${!items.length ? `<tr><td colspan="8"><div class="empty"><div class="empty-icon">💰</div><div class="empty-title">Sin registros para este período</div></div></td></tr>` :
           [...items].sort((a,b)=>b.ts-a.ts).map(c=>`<tr>
             <td><span class="badge badge-sede">${SEDE_LABELS[c.sede]||c.sede}</span></td>
             <td style="font-family:var(--font-mono);font-size:0.8rem">${c.mes||'—'}</td>
